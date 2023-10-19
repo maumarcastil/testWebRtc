@@ -1,14 +1,18 @@
-import { StatusBar } from "expo-status-bar";
+import { Provider } from "react-redux";
 import { StyleSheet, Text, View } from "react-native";
-import Streaming from "./src/Streaming.js";
+
+import Index from "./src/screen/index.js";
+
+/* redux */
+import { store } from "./src/redux/store.js";
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <StatusBar style="auto" />
-      <Text>Open up App.js to start working on your app!</Text>
-      <Streaming />
-    </View>
+    <>
+      <Provider store={store}>
+        <Index />
+      </Provider>
+    </>
   );
 }
 

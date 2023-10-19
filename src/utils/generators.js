@@ -1,0 +1,1 @@
+export const customGenerationFunction = () => (Math.random().toString() + "0000000000000000000000000").substring(2, 16);
