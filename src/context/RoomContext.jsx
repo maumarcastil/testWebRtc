@@ -3,13 +3,24 @@ import Peer from "react-native-peerjs";
 import { mediaDevices } from "react-native-webrtc";
 
 import { ws } from "../config/ws";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  addAllPeers,
+  addPeerName,
+  addPeerStream,
+  removePeerStream,
+} from "../redux/slices/peerSlice";
 
 export const RoomContext = React.createContext();
 
 export const RoomProvider = ({ children }) => {
   const [me, setMe] = React.useState();
   const [stream, setStream] = React.useState();
-  const [remoteStreams, setRemoteStreams] = React.useState([]);
+
+  /* redux */
+  const dispatch = useDispatch();
+  const state = useSelector((state) => state.peerReducer);
+  console.log("🚀 ~ file: RoomContext.jsx:24 ~ RoomProvider ~ state:", state);
 
   React.useEffect(() => {
     console.log("🚀 ~ file: RoomContext.jsx:9 ~ useEffect ~ useEffect:");
@@ -20,6 +31,11 @@ export const RoomProvider = ({ children }) => {
       secure: true,
       path: "/",
     });
+
+    peer.on("error", (error) => {
+      console.log("🚀 ~ file: RoomContext.jsx:38 ~ peer.on ~ error:", error);
+    });
+
     setMe(peer);
     // get Media
     (async () => {
@@ -41,7 +57,9 @@ export const RoomProvider = ({ children }) => {
     ws.on("room-created", enterRoom);
     ws.on("get-users", getUsers);
     ws.on("user-disconnected", removePeer);
-    ws.on("error", console.error);
+    ws.on("error", (error) => {
+      console.error("🚀 ~ [SOCKET] error", error);
+    });
 
     return () => {
       ws.off("room-created");
@@ -64,12 +82,23 @@ export const RoomProvider = ({ children }) => {
         },
       });
       call.on("stream", (peerStream) => {
-        /* dispatch(addPeerStreamAction(peerId, peerStream)); */
-        console.log(
-          "🚀 ~ file: RoomContext.jsx:67 ~ call.on ~ dispatch(addPeerStreamAction(peerId, peerStream));:"
-        );
+        dispatch(addPeerStream(peerId, peerStream));
+      });
+      dispatch(addPeerName(peerId, name, role));
+    });
+
+    me.on("call", (call) => {
+      const { userName, role } = call.metadata;
+      dispatch(addPeerName(call.peer, userName, role));
+      call.answer(stream);
+      call.on("stream", (peerStream) => {
+        dispatch(addPeerStream(call.peer, peerStream));
       });
     });
+
+    return () => {
+      ws.off("user-joined");
+    };
   }, [me, stream]);
 
   const getLocalStream = async () => {
@@ -100,13 +129,20 @@ export const RoomProvider = ({ children }) => {
 
   /* FUNC SOCKET */
   const enterRoom = ({ roomId }) => {
+    /* navigate(`/room/${roomId}`); */
     console.log("🚀 ~ file: RoomContext.jsx:86 ~ enterRoom ~ enterRoom:", {
       roomId,
     });
-    /* navigate(`/room/${roomId}`); */
+    ws.emit("join-room", {
+      roomId,
+      peerId: userId,
+      userName: newUserName(token),
+      token,
+    });
   };
 
   const getUsers = ({ partcipants }) => {
+    dispatch(addAllPeers(partcipants));
     console.log(
       "🚀 ~ file: RoomContext.jsx:83 ~ getUsers ~ partcipants:",
       partcipants
@@ -114,6 +150,7 @@ export const RoomProvider = ({ children }) => {
   };
 
   const removePeer = (peerId) => {
+    dispatch(removePeerStream(peerId));
     console.log("🚀 ~ file: RoomContext.jsx:100 ~ removePeer ~ removePeer:", {
       peerId,
     });
