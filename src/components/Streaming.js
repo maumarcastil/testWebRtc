@@ -7,11 +7,9 @@ import { ws } from "../config/ws";
 
 const Streaming = () => {
   // get stream context
-  const { stream: localStream } = React.useContext(RoomContext);
+  const { stream: localStream, token } = React.useContext(RoomContext);
 
   const createRoom = React.useCallback(() => {
-    const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJtbTg3dXMwd05oT3c4cFl5T0ZqaWFFR1BuVmUyIiwiZW1haWwiOiJnYXZlaGF0NDQwQGVsaXhpcnNkLmNvbSIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE2OTc3NzAwNjUsImV4cCI6MjAxMzM0NjA2NX0.rnkqWPVJl40alfsYh1prV39Vl47FXDPhBUqgRrzKCho";
     ws.emit("create-room", { token });
   }, []);
 

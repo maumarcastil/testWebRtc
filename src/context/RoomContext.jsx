@@ -1,31 +1,46 @@
-import * as React from "react";
 import Peer from "react-native-peerjs";
 import { mediaDevices } from "react-native-webrtc";
+import { useDispatch, useSelector } from "react-redux";
+import { createContext, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ws } from "../config/ws";
-import { useDispatch, useSelector } from "react-redux";
 import {
   addAllPeers,
   addPeerName,
   addPeerStream,
   removePeerStream,
 } from "../redux/slices/peerSlice";
+import { customGenerationFunction } from "../utils/generators";
 
-export const RoomContext = React.createContext();
+export const RoomContext = createContext();
 
 export const RoomProvider = ({ children }) => {
-  const [me, setMe] = React.useState();
-  const [stream, setStream] = React.useState();
+  const [me, setMe] = useState();
+  const [stream, setStream] = useState();
+  const [roomId, setRoomId] = useState("");
+  const [token, setToken] = useState(
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJtbTg3dXMwd05oT3c4cFl5T0ZqaWFFR1BuVmUyIiwiZW1haWwiOiJnYXZlaGF0NDQwQGVsaXhpcnNkLmNvbSIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE2OTc3NzM3MzYsImV4cCI6MjAxMzM0OTczNn0.fSPsCYPu_t6nW7C4fKdBj4dTJV9U8qHS_1PyoRioxLw"
+  );
 
   /* redux */
   const dispatch = useDispatch();
   const state = useSelector((state) => state.peerReducer);
-  console.log("🚀 ~ file: RoomContext.jsx:24 ~ RoomProvider ~ state:", state);
+  console.log("🚀 ~ file: RoomContext.jsx:30 ~ RoomProvider ~ state:", state);
 
-  React.useEffect(() => {
-    console.log("🚀 ~ file: RoomContext.jsx:9 ~ useEffect ~ useEffect:");
+  useEffect(() => {
+    console.log(
+      "🚀 ~ file: RoomContext.jsx:33 ~ React.useEffect ~ useEffect:",
+      useEffect
+    );
 
-    const peer = new Peer("hola", {
+    // get stream local
+    (async () => {
+      await getLocalStream();
+    })();
+
+    // start peer
+    const peer = new Peer("buenas", {
       host: process.env.REACT_APP_PEER_SERVER || "peer-qvf4.onrender.com",
       port: Number(process.env.REACT_APP_PEER_PORT) || 443,
       secure: true,
@@ -36,26 +51,13 @@ export const RoomProvider = ({ children }) => {
       console.log("🚀 ~ file: RoomContext.jsx:38 ~ peer.on ~ error:", error);
     });
 
-    setMe(peer);
-    // get Media
-    (async () => {
-      try {
-        await getLocalStream();
-      } catch (error) {
-        console.log(
-          "🚀 ~ file: RoomContext.jsx:27 ~ React.useEffect ~ error:",
-          error
-        );
-      }
-    })();
-
     // define event sockets
     ws.on("connect", () => {
       console.log("🚀 ~ [SOCKET] ws connected");
     });
 
     ws.on("room-created", enterRoom);
-    ws.on("get-users", getUsers);
+    ws.on("emit-streaming", reemitStreaming);
     ws.on("user-disconnected", removePeer);
     ws.on("error", (error) => {
       console.error("🚀 ~ [SOCKET] error", error);
@@ -63,42 +65,25 @@ export const RoomProvider = ({ children }) => {
 
     return () => {
       ws.off("room-created");
-      ws.off("get-users");
+      ws.off("emit-streaming");
       ws.off("user-disconnected");
-      ws.off("user-joined");
       ws.off("error");
       me?.disconnect();
     };
   }, []);
 
-  React.useEffect(() => {
-    if (!me || !stream) return;
-
-    ws.on("user-joined", ({ peerId, userName: name, role }) => {
-      const call = me.call(peerId, stream, {
-        metadata: {
-          userName,
-          role,
-        },
-      });
-      call.on("stream", (peerStream) => {
-        dispatch(addPeerStream(peerId, peerStream));
-      });
-      dispatch(addPeerName(peerId, name, role));
-    });
+  useEffect(() => {
+    if (!me) return;
+    if (!stream) return;
 
     me.on("call", (call) => {
-      const { userName, role } = call.metadata;
-      dispatch(addPeerName(call.peer, userName, role));
+      const { userName } = call.metadata;
+      dispatch(addPeerName(call.peer, userName));
       call.answer(stream);
       call.on("stream", (peerStream) => {
         dispatch(addPeerStream(call.peer, peerStream));
       });
     });
-
-    return () => {
-      ws.off("user-joined");
-    };
   }, [me, stream]);
 
   const getLocalStream = async () => {
@@ -127,33 +112,46 @@ export const RoomProvider = ({ children }) => {
     setStream(newStream);
   };
 
-  /* FUNC SOCKET */
-  const enterRoom = ({ roomId }) => {
-    /* navigate(`/room/${roomId}`); */
-    console.log("🚀 ~ file: RoomContext.jsx:86 ~ enterRoom ~ enterRoom:", {
+  /* Func soket */
+  const enterRoom = async ({ roomId }) => {
+    setRoomId(roomId);
+    console.log("🚀 ~ file: RoomContext.jsx:115 ~ enterRoom ~ enterRoom:", {
       roomId,
     });
-    ws.emit("join-room", {
-      roomId,
-      peerId: userId,
-      userName: newUserName(token),
-      token,
-    });
-  };
-
-  const getUsers = ({ partcipants }) => {
-    dispatch(addAllPeers(partcipants));
-    console.log(
-      "🚀 ~ file: RoomContext.jsx:83 ~ getUsers ~ partcipants:",
-      partcipants
-    );
+    await emitStreaming();
   };
 
   const removePeer = (peerId) => {
     dispatch(removePeerStream(peerId));
-    console.log("🚀 ~ file: RoomContext.jsx:100 ~ removePeer ~ removePeer:", {
-      peerId,
+  };
+
+  const emitStreaming = async () => {
+    const genUserId = customGenerationFunction();
+
+    await AsyncStorage.setItem("token", token);
+    await AsyncStorage.setItem("roomId", roomId);
+    await AsyncStorage.setItem("peerId", genUserId);
+
+    ws.emit("join-room", {
+      roomId: "venezuela",
+      peerId: genUserId,
+      userName: customGenerationFunction(),
+      token,
     });
+  };
+
+  const reemitStreaming = async () => {
+    const token = await AsyncStorage.getItem("token");
+    const roomId = await AsyncStorage.getItem("roomId");
+    const peerId = await AsyncStorage.getItem("peerId");
+    if (token) {
+      ws.emit("join-room", {
+        roomId: "venezuela",
+        peerId,
+        userName: customGenerationFunction(),
+        token,
+      });
+    }
   };
 
   return (
@@ -161,6 +159,11 @@ export const RoomProvider = ({ children }) => {
       <RoomContext.Provider
         value={{
           stream,
+          roomId,
+          setRoomId,
+          emitStreaming,
+          token,
+          setToken,
         }}
       >
         {children}
