@@ -20,7 +20,7 @@ export const RoomProvider = ({ children }) => {
   const [stream, setStream] = useState();
   const [roomId, setRoomId] = useState("");
   const [token, setToken] = useState(
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJtbTg3dXMwd05oT3c4cFl5T0ZqaWFFR1BuVmUyIiwiZW1haWwiOiJnYXZlaGF0NDQwQGVsaXhpcnNkLmNvbSIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE2OTc3NzM3MzYsImV4cCI6MjAxMzM0OTczNn0.fSPsCYPu_t6nW7C4fKdBj4dTJV9U8qHS_1PyoRioxLw"
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNenVPakc5VWgxZjVDVzl1ZG1Sb0dDaUZaeDEzIiwiZW1haWwiOiJjYXBveWFzNjEyQHN0eXBlZGlhLmNvbSIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE2OTc4MTM5ODMsImV4cCI6MjAxMzM4OTk4M30.O2kz-Tam_K6h08GuQLndMy8ySvRtbsflmUC-1Kh_TDw"
   );
 
   /* redux */
