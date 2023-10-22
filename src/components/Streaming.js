@@ -9,8 +9,11 @@ const Streaming = () => {
   // get stream context
   const { stream: localStream, token } = React.useContext(RoomContext);
 
+  React.useEffect(() => {}, []);
+
   const createRoom = React.useCallback(() => {
-    ws.emit("create-room", { token });
+    console.log("🚀 ~ file: Streaming.js ~ line 71 ~ createRoom ~ token");
+    /* ws.emit("create-room", { token }); */
   }, []);
 
   return (
